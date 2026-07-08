@@ -1,9 +1,10 @@
-import { FiGrid, FiUsers, FiCalendar } from "react-icons/fi";
+import { FiGrid, FiUsers, FiCalendar, FiDollarSign } from "react-icons/fi";
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Resumen", icon: FiGrid },
   { key: "employees", label: "Empleados", icon: FiUsers },
   { key: "payroll", label: "Planilla Semanal", icon: FiCalendar },
+  { key: "finance", label: "Gastos e Ingresos", icon: FiDollarSign },
 ];
 
 export default function Sidebar({ view, onChangeView }) {
@@ -31,7 +32,7 @@ export default function Sidebar({ view, onChangeView }) {
       </nav>
 
       <div className="sidebar-footer">
-        Datos guardados localmente en este navegador.
+        Datos guardados en la base de datos local (SQLite).
       </div>
     </aside>
   );

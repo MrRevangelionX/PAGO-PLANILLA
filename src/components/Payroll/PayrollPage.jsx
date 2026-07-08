@@ -9,7 +9,6 @@ import {
   FiClock,
   FiInbox,
 } from "react-icons/fi";
-import { v4 as uuid } from "uuid";
 import Badge from "../common/Badge";
 import { DEPARTAMENTOS } from "../../utils/seedData";
 import {
@@ -27,32 +26,23 @@ function findRecord(records, employeeId, semana) {
   return records.find((r) => r.employeeId === employeeId && r.semana === semana);
 }
 
-export default function PayrollPage({ employees, payrollRecords, setPayrollRecords }) {
+export default function PayrollPage({ employees, payrollRecords, onUpsertRecord }) {
   const [week, setWeek] = useState(currentWeekValue());
   const [search, setSearch] = useState("");
   const [departamento, setDepartamento] = useState("");
   const [estadoPago, setEstadoPago] = useState("");
   const [soloActivos, setSoloActivos] = useState(true);
 
-  function upsertRecord(employeeId, patch) {
-    setPayrollRecords((prev) => {
-      const existing = findRecord(prev, employeeId, week);
-      if (existing) {
-        return prev.map((r) => (r.id === existing.id ? { ...r, ...patch } : r));
-      }
-      return [
-        ...prev,
-        {
-          id: uuid(),
-          employeeId,
-          semana: week,
-          horasExtra: 0,
-          descuentos: 0,
-          estado: "Pendiente",
-          ...patch,
-        },
-      ];
-    });
+  async function upsertRecord(employeeId, patch) {
+    try {
+      await onUpsertRecord(employeeId, week, patch);
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "No se pudo guardar el registro",
+        text: error.message,
+      });
+    }
   }
 
   const weekRows = useMemo(() => {
@@ -150,6 +140,14 @@ export default function PayrollPage({ employees, payrollRecords, setPayrollRecor
     ];
   }
 
+  function buildExportSummary() {
+    return [
+      { label: "Total planilla", value: money(summary.totalPlanilla) },
+      { label: "Horas extra", value: summary.totalHorasExtra },
+      { label: "Pagos pendientes", value: `${summary.pendientes} de ${summary.total}` },
+    ];
+  }
+
   function handleExportExcel() {
     if (filteredRows.length === 0) {
       Swal.fire({ icon: "info", title: "Nada que exportar", text: "No hay registros con los filtros actuales." });
@@ -160,6 +158,9 @@ export default function PayrollPage({ employees, payrollRecords, setPayrollRecor
       columns: buildExportColumns(),
       fileName: `planilla_${week}`,
       sheetName: week,
+      title: "Planilla de Pago Semanal",
+      subtitle: formatWeekLabel(week),
+      summary: buildExportSummary(),
     });
     Swal.fire({ icon: "success", title: "Excel exportado", timer: 1400, showConfirmButton: false });
   }
@@ -175,6 +176,7 @@ export default function PayrollPage({ employees, payrollRecords, setPayrollRecor
       fileName: `planilla_${week}`,
       title: "Planilla de Pago Semanal",
       subtitle: formatWeekLabel(week),
+      summary: buildExportSummary(),
     });
     Swal.fire({ icon: "success", title: "PDF exportado", timer: 1400, showConfirmButton: false });
   }

@@ -63,6 +63,17 @@ button {
   min-height: 100vh;
 }
 
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100vh;
+  text-align: center;
+  padding: 24px;
+}
+
 .sidebar {
   width: 232px;
   flex-shrink: 0;
@@ -583,6 +594,47 @@ button {
   color: var(--text);
 }
 
+.amount-positive {
+  font-weight: 700;
+  color: var(--success);
+}
+
+.amount-negative {
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.tipo-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.tipo-toggle-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tipo-toggle-btn.gasto.active {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: #eecac6;
+}
+
+.tipo-toggle-btn.ingreso.active {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: #c7e0d0;
+}
+
 .cell-muted {
   color: var(--text-muted);
   font-size: 12.5px;
@@ -616,6 +668,114 @@ button {
 .name-cell-text span {
   font-size: 11.5px;
   color: var(--text-muted);
+}
+
+/* ---------- Trend bars (weekly / monthly income vs expense) ---------- */
+
+.trend-legend {
+  display: flex;
+  gap: 14px;
+}
+
+.trend-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.trend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.trend-dot.ingreso {
+  background: var(--success);
+}
+
+.trend-dot.gasto {
+  background: var(--danger);
+}
+
+.trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trend-row {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+}
+
+.trend-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.trend-row-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.trend-row-balance {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.trend-row-balance.positive {
+  color: var(--success);
+}
+
+.trend-row-balance.negative {
+  color: var(--danger);
+}
+
+.trend-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.trend-bar-track {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.trend-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.trend-bar-fill.ingreso {
+  background: var(--success);
+}
+
+.trend-bar-fill.gasto {
+  background: var(--danger);
+}
+
+.trend-bar-value {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  min-width: 90px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .empty-state {

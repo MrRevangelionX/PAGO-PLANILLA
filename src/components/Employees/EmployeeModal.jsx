@@ -123,7 +123,7 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
                   min="0"
                   step="0.01"
                   value={form.salarioBase}
-                  onChange={(e) => update("salarioBase", e.target.value)}q
+                  onChange={(e) => update("salarioBase", e.target.value)}
                   placeholder="US$350.00"
                 />
                 {errors.salarioBase && <span className="field-error">{errors.salarioBase}</span>}

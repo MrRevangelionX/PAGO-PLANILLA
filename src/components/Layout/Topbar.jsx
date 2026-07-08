@@ -14,6 +14,10 @@ const TITLES = {
     title: "Planilla Semanal",
     subtitle: "Registra horas extra y calcula el pago de la semana",
   },
+  finance: {
+    title: "Gastos e Ingresos",
+    subtitle: "Controla los movimientos pequeños de la empresa",
+  },
 };
 
 export default function Topbar({ view }) {

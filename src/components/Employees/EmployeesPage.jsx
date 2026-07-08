@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import DataTable from "react-data-table-component";
 import Swal from "sweetalert2";
 import { FiPlus, FiEdit2, FiTrash2, FiUserX, FiX } from "react-icons/fi";
-import { v4 as uuid } from "uuid";
 import EmployeeModal from "./EmployeeModal";
 import Badge from "../common/Badge";
 import { DEPARTAMENTOS } from "../../utils/seedData";
@@ -19,7 +18,12 @@ function initials(name) {
     .toUpperCase();
 }
 
-export default function EmployeesPage({ employees, setEmployees }) {
+export default function EmployeesPage({
+  employees,
+  onCreateEmployee,
+  onUpdateEmployee,
+  onDeleteEmployee,
+}) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [search, setSearch] = useState("");
@@ -58,27 +62,33 @@ export default function EmployeesPage({ employees, setEmployees }) {
     setModalOpen(true);
   }
 
-  function handleSave(data) {
-    if (editingEmployee) {
-      setEmployees((prev) =>
-        prev.map((emp) => (emp.id === editingEmployee.id ? { ...emp, ...data } : emp)),
-      );
+  async function handleSave(data) {
+    try {
+      if (editingEmployee) {
+        await onUpdateEmployee(editingEmployee.id, data);
+        Swal.fire({
+          icon: "success",
+          title: "Empleado actualizado",
+          text: `${data.nombre} fue actualizado correctamente.`,
+          confirmButtonText: "Entendido",
+        });
+      } else {
+        await onCreateEmployee(data);
+        Swal.fire({
+          icon: "success",
+          title: "Empleado creado",
+          text: `${data.nombre} fue agregado a la planilla.`,
+          confirmButtonText: "Entendido",
+        });
+      }
+      setModalOpen(false);
+    } catch (error) {
       Swal.fire({
-        icon: "success",
-        title: "Empleado actualizado",
-        text: `${data.nombre} fue actualizado correctamente.`,
-        confirmButtonText: "Entendido",
-      });
-    } else {
-      setEmployees((prev) => [...prev, { ...data, id: uuid() }]);
-      Swal.fire({
-        icon: "success",
-        title: "Empleado creado",
-        text: `${data.nombre} fue agregado a la planilla.`,
-        confirmButtonText: "Entendido",
+        icon: "error",
+        title: "No se pudo guardar",
+        text: error.message,
       });
     }
-    setModalOpen(false);
   }
 
   async function handleDelete(emp) {
@@ -93,14 +103,22 @@ export default function EmployeesPage({ employees, setEmployees }) {
     });
 
     if (result.isConfirmed) {
-      setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
-      Swal.fire({
-        icon: "success",
-        title: "Eliminado",
-        text: "El empleado fue eliminado de la planilla.",
-        timer: 1600,
-        showConfirmButton: false,
-      });
+      try {
+        await onDeleteEmployee(emp.id);
+        Swal.fire({
+          icon: "success",
+          title: "Eliminado",
+          text: "El empleado fue eliminado de la planilla.",
+          timer: 1600,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title: "No se pudo eliminar",
+          text: error.message,
+        });
+      }
     }
   }
 
