@@ -1,7 +1,9 @@
 import cors from "cors";
 import express from "express";
 import { v4 as uuid } from "uuid";
-import { db } from "./db.js";
+import { pool } from "./db.js";
+import { runMigrations } from "./migrate.js";
+import { seedEmployees } from "../src/utils/seedData.js";
 
 const app = express();
 app.use(cors());
@@ -25,54 +27,61 @@ function pickEmployeeFields(body) {
   return data;
 }
 
-app.get("/api/employees", (req, res) => {
-  res.json(db.prepare("SELECT * FROM employees ORDER BY nombre").all());
+app.get("/api/employees", async (req, res) => {
+  const [rows] = await pool.query("SELECT * FROM employees ORDER BY nombre");
+  res.json(rows);
 });
 
-app.post("/api/employees", (req, res) => {
+app.post("/api/employees", async (req, res) => {
   const employee = { id: uuid(), ...pickEmployeeFields(req.body) };
-  db.prepare(
+  await pool.execute(
     `INSERT INTO employees (id, nombre, documento, cargo, departamento, salarioBase, factorHoraExtra, telefono, fechaIngreso, estado)
-     VALUES (@id, @nombre, @documento, @cargo, @departamento, @salarioBase, @factorHoraExtra, @telefono, @fechaIngreso, @estado)`,
-  ).run(employee);
+     VALUES (:id, :nombre, :documento, :cargo, :departamento, :salarioBase, :factorHoraExtra, :telefono, :fechaIngreso, :estado)`,
+    employee,
+  );
   res.status(201).json(employee);
 });
 
-app.put("/api/employees/:id", (req, res) => {
+app.put("/api/employees/:id", async (req, res) => {
   const { id } = req.params;
-  const existing = db.prepare("SELECT * FROM employees WHERE id = ?").get(id);
+  const [existingRows] = await pool.execute("SELECT * FROM employees WHERE id = :id", { id });
+  const existing = existingRows[0];
   if (!existing) return res.status(404).json({ error: "Empleado no encontrado" });
 
   const employee = { id, ...pickEmployeeFields({ ...existing, ...req.body }) };
-  db.prepare(
+  await pool.execute(
     `UPDATE employees SET
-       nombre=@nombre, documento=@documento, cargo=@cargo, departamento=@departamento,
-       salarioBase=@salarioBase, factorHoraExtra=@factorHoraExtra, telefono=@telefono,
-       fechaIngreso=@fechaIngreso, estado=@estado
-     WHERE id=@id`,
-  ).run(employee);
+       nombre=:nombre, documento=:documento, cargo=:cargo, departamento=:departamento,
+       salarioBase=:salarioBase, factorHoraExtra=:factorHoraExtra, telefono=:telefono,
+       fechaIngreso=:fechaIngreso, estado=:estado
+     WHERE id=:id`,
+    employee,
+  );
   res.json(employee);
 });
 
-app.delete("/api/employees/:id", (req, res) => {
-  const result = db.prepare("DELETE FROM employees WHERE id = ?").run(req.params.id);
-  if (result.changes === 0) return res.status(404).json({ error: "Empleado no encontrado" });
+app.delete("/api/employees/:id", async (req, res) => {
+  const [result] = await pool.execute("DELETE FROM employees WHERE id = :id", { id: req.params.id });
+  if (result.affectedRows === 0) return res.status(404).json({ error: "Empleado no encontrado" });
   res.status(204).end();
 });
 
-app.get("/api/payroll-records", (req, res) => {
-  res.json(db.prepare("SELECT * FROM payroll_records").all());
+app.get("/api/payroll-records", async (req, res) => {
+  const [rows] = await pool.query("SELECT * FROM payroll_records");
+  res.json(rows);
 });
 
-app.put("/api/payroll-records", (req, res) => {
+app.put("/api/payroll-records", async (req, res) => {
   const { employeeId, semana, horasExtra, descuentos, estado } = req.body;
   if (!employeeId || !semana) {
     return res.status(400).json({ error: "employeeId y semana son requeridos" });
   }
 
-  const existing = db
-    .prepare("SELECT * FROM payroll_records WHERE employeeId = ? AND semana = ?")
-    .get(employeeId, semana);
+  const [existingRows] = await pool.execute(
+    "SELECT * FROM payroll_records WHERE employeeId = :employeeId AND semana = :semana",
+    { employeeId, semana },
+  );
+  const existing = existingRows[0];
 
   const record = {
     id: existing?.id ?? uuid(),
@@ -83,14 +92,15 @@ app.put("/api/payroll-records", (req, res) => {
     estado: estado ?? existing?.estado ?? "Pendiente",
   };
 
-  db.prepare(
+  await pool.execute(
     `INSERT INTO payroll_records (id, employeeId, semana, horasExtra, descuentos, estado)
-     VALUES (@id, @employeeId, @semana, @horasExtra, @descuentos, @estado)
-     ON CONFLICT(employeeId, semana) DO UPDATE SET
-       horasExtra=excluded.horasExtra,
-       descuentos=excluded.descuentos,
-       estado=excluded.estado`,
-  ).run(record);
+     VALUES (:id, :employeeId, :semana, :horasExtra, :descuentos, :estado)
+     ON DUPLICATE KEY UPDATE
+       horasExtra = VALUES(horasExtra),
+       descuentos = VALUES(descuentos),
+       estado = VALUES(estado)`,
+    record,
+  );
 
   res.status(existing ? 200 : 201).json(record);
 });
@@ -103,41 +113,64 @@ function pickTransactionFields(body) {
   return data;
 }
 
-app.get("/api/transactions", (req, res) => {
-  res.json(db.prepare("SELECT * FROM transactions ORDER BY fecha DESC, rowid DESC").all());
+app.get("/api/transactions", async (req, res) => {
+  const [rows] = await pool.query(
+    "SELECT id, tipo, concepto, categoria, monto, fecha, metodoPago, notas FROM transactions ORDER BY fecha DESC, seq DESC",
+  );
+  res.json(rows);
 });
 
-app.post("/api/transactions", (req, res) => {
+app.post("/api/transactions", async (req, res) => {
   const transaction = { id: uuid(), ...pickTransactionFields(req.body) };
-  db.prepare(
+  await pool.execute(
     `INSERT INTO transactions (id, tipo, concepto, categoria, monto, fecha, metodoPago, notas)
-     VALUES (@id, @tipo, @concepto, @categoria, @monto, @fecha, @metodoPago, @notas)`,
-  ).run(transaction);
+     VALUES (:id, :tipo, :concepto, :categoria, :monto, :fecha, :metodoPago, :notas)`,
+    transaction,
+  );
   res.status(201).json(transaction);
 });
 
-app.put("/api/transactions/:id", (req, res) => {
+app.put("/api/transactions/:id", async (req, res) => {
   const { id } = req.params;
-  const existing = db.prepare("SELECT * FROM transactions WHERE id = ?").get(id);
+  const [existingRows] = await pool.execute("SELECT * FROM transactions WHERE id = :id", { id });
+  const existing = existingRows[0];
   if (!existing) return res.status(404).json({ error: "Movimiento no encontrado" });
 
   const transaction = { id, ...pickTransactionFields({ ...existing, ...req.body }) };
-  db.prepare(
+  await pool.execute(
     `UPDATE transactions SET
-       tipo=@tipo, concepto=@concepto, categoria=@categoria, monto=@monto,
-       fecha=@fecha, metodoPago=@metodoPago, notas=@notas
-     WHERE id=@id`,
-  ).run(transaction);
+       tipo=:tipo, concepto=:concepto, categoria=:categoria, monto=:monto,
+       fecha=:fecha, metodoPago=:metodoPago, notas=:notas
+     WHERE id=:id`,
+    transaction,
+  );
   res.json(transaction);
 });
 
-app.delete("/api/transactions/:id", (req, res) => {
-  const result = db.prepare("DELETE FROM transactions WHERE id = ?").run(req.params.id);
-  if (result.changes === 0) return res.status(404).json({ error: "Movimiento no encontrado" });
+app.delete("/api/transactions/:id", async (req, res) => {
+  const [result] = await pool.execute("DELETE FROM transactions WHERE id = :id", { id: req.params.id });
+  if (result.affectedRows === 0) return res.status(404).json({ error: "Movimiento no encontrado" });
   res.status(204).end();
 });
 
-const PORT = process.env.PORT || 4000;
+async function seedIfEmpty() {
+  const [[{ count }]] = await pool.query("SELECT COUNT(*) AS count FROM employees");
+  if (count > 0) return;
+
+  for (const emp of seedEmployees) {
+    await pool.execute(
+      `INSERT INTO employees (id, nombre, documento, cargo, departamento, salarioBase, factorHoraExtra, telefono, fechaIngreso, estado)
+       VALUES (:id, :nombre, :documento, :cargo, :departamento, :salarioBase, :factorHoraExtra, :telefono, :fechaIngreso, :estado)`,
+      emp,
+    );
+  }
+}
+
+const PORT = process.env.API_PORT || 4000;
+
+await runMigrations();
+await seedIfEmpty();
+
 app.listen(PORT, () => {
   console.log(`API de Pago Planilla escuchando en http://localhost:${PORT}`);
 });
